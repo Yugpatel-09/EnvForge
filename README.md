@@ -1,9 +1,9 @@
 # EnvForge
 
-Evaluation-first environments for DevOps and SRE agents. EnvForge gives an agent a
-seeded incident, records its actions, verifies recovery and safety, and produces
-an inspectable report. This release is a single-workspace SRE simulation
-prototype for local evaluation and supervised pilots.
+> **The Proving Ground for AI Agents.**  
+> Evaluation-first, RL-ready simulation environments and anti-exploit benchmarks for autonomous DevOps and SRE agents.
+
+Before an AI agent touches your production cluster, certify it on EnvForge. EnvForge gives an agent a seeded incident, records its actions, verifies recovery and safety with independent probes, and produces an inspectable, cryptographically sealed report.
 
 ## Capabilities
 
