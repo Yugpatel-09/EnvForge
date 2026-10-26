@@ -1,0 +1,56 @@
+# env
+.venv
+.venv/
+venv/
+env/
+.env
+.env.local
+.claude/
+.cursorrules
+.ropeproject/
+.scratch/
+.chroma_db/
+/.codex/environments/
+.python-version
+
+# artifacts
+core.[0-9]*
+.coverage
+dist/
+build/
+_build/
+docs/build/
+*.egg-info/
+__pycache__/
+environments/**/uv.lock
+
+.pytest_cache/
+.ruff_cache/
+*.pyo
+*.pyd
+*.pyc
+
+# prime
+.prime
+
+# libraries
+/prime-rl
+
+# outputs
+wandb/
+outputs/
+reports/
+logs/
+.chroma_db/
+
+# development
+scratch/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+*.sqlite3
+node_modules/
+apps/web/dist/
+data/
+apps/api/.venv/

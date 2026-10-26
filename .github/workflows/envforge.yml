@@ -1,0 +1,52 @@
+name: EnvForge
+
+on:
+  pull_request:
+    paths: ["envforge/**", "apps/**", "deploy/**", "pyproject.toml", "uv.lock", ".github/workflows/envforge.yml"]
+  push:
+    branches: [main]
+    paths: ["envforge/**", "apps/**", "deploy/**", "pyproject.toml", "uv.lock", ".github/workflows/envforge.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: uv sync --project apps/api --locked
+      - name: SRE and API regression checks
+        run: uv run --project apps/api pytest tests/unit/test_api.py tests/unit/test_sre_world.py tests/adversarial/test_sre_adversarial.py
+      - name: Scenario and verifier QA
+        run: uv run envforge qa --instances 50 --repeats 20 --output data/qa-report.json
+      - name: Dashboard checks
+        working-directory: apps/web
+        run: |
+          npm ci --include=optional
+          npm run lint
+          npm run build
+      - name: Deployment smoke check
+        env:
+          ENVFORGE_API_TOKEN: ci-local-validation-only
+        run: |
+          docker compose -f deploy/compose.yaml up --build -d --wait --wait-timeout 120
+          curl --fail http://127.0.0.1:8080/health
+          docker compose -f deploy/compose.yaml exec -T worker uv run --no-project --no-sync envforge smoke
+      - name: Deployment diagnostics
+        if: failure()
+        env:
+          ENVFORGE_API_TOKEN: ci-local-validation-only
+        run: docker compose -f deploy/compose.yaml logs --tail 100
+      - name: Stop deployment
+        if: always()
+        env:
+          ENVFORGE_API_TOKEN: ci-local-validation-only
+        run: docker compose -f deploy/compose.yaml down

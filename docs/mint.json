@@ -1,0 +1,121 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "navigation": [
+    {
+      "group": "Verifiers",
+      "pages": [
+        "overview",
+        "getting_started",
+        "architecture",
+        "building-environments",
+        "tasksets",
+        "evaluation",
+        "runtimes",
+        "debugging",
+        "harnesses",
+        "agent",
+        "env",
+        "harbor",
+        "gepa"
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/v1/overview",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v1/getting_started",
+      "destination": "/getting_started"
+    },
+    {
+      "source": "/v1/architecture",
+      "destination": "/architecture"
+    },
+    {
+      "source": "/v1/tasksets",
+      "destination": "/tasksets"
+    },
+    {
+      "source": "/v1/evaluation",
+      "destination": "/evaluation"
+    },
+    {
+      "source": "/v1/harnesses",
+      "destination": "/harnesses"
+    },
+    {
+      "source": "/v1/agent",
+      "destination": "/agent"
+    },
+    {
+      "source": "/v1/env",
+      "destination": "/env"
+    },
+    {
+      "source": "/v1/harbor",
+      "destination": "/harbor"
+    },
+    {
+      "source": "/v1/gepa",
+      "destination": "/gepa"
+    },
+    {
+      "source": "/v0/overview",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/environments",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/evaluation",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/training",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/development",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/reference",
+      "destination": "/overview"
+    },
+    {
+      "source": "/v0/faqs",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/overview",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/environments",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/evaluation",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/training",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/development",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/reference",
+      "destination": "/overview"
+    },
+    {
+      "source": "/legacy/faqs",
+      "destination": "/overview"
+    }
+  ]
+}

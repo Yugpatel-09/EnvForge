@@ -1,0 +1,67 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      ENVFORGE_API_TOKEN: ${ENVFORGE_API_TOKEN:?Set a workspace API token in deploy/.env}
+      ENVFORGE_AGENT_HOSTS: ${ENVFORGE_AGENT_HOSTS:-localhost,127.0.0.1}
+      ENVFORGE_EXTERNAL_WORKER: "1"
+    volumes:
+      - data:/data
+    networks: [internal, agent-egress]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1
+    mem_limit: 1g
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, uv, run, --no-project, --no-sync, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: [uv, run, --no-project, --no-sync, python, -m, apps.api.runner]
+    environment:
+      ENVFORGE_AGENT_HOSTS: ${ENVFORGE_AGENT_HOSTS:-localhost,127.0.0.1}
+    volumes:
+      - data:/data
+    networks: [internal, agent-egress]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 2
+    mem_limit: 2g
+    pids_limit: 128
+    restart: unless-stopped
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [internal, frontend]
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 1
+    mem_limit: 256m
+    pids_limit: 64
+    restart: unless-stopped
+volumes:
+  data:
+networks:
+  internal:
+    internal: true
+  agent-egress:
+  frontend:

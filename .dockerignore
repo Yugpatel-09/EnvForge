@@ -1,0 +1,12 @@
+.git
+.venv
+**/.venv
+**/node_modules
+**/__pycache__
+data
+work
+outputs
+reports
+*.sqlite3
+.env*
+!deploy/.env.example

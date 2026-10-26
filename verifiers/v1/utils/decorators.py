@@ -1,0 +1,137 @@
+"""Scoring and rollout-control decorators."""
+
+import asyncio
+import inspect
+from collections.abc import Callable, Iterable
+from typing import Any, TypeVar, get_origin, get_type_hints, overload
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def discover_decorated(obj: object, attr: str) -> list[Callable[..., Any]]:
+    """Bound methods on `obj` tagged with `attr`, sorted by priority then name. Scans the
+    class MRO for tagged functions (not `inspect.getmembers(obj)`, which evaluates every
+    descriptor — a property with side effects would run here) and binds each through
+    `getattr`, so the most-derived override wins."""
+    names = {
+        name
+        for klass in type(obj).__mro__
+        for name, fn in vars(klass).items()
+        if callable(fn) and hasattr(fn, attr)
+    }
+    # An undecorated override suppresses a decorated base method.
+    methods = [method for name in names if hasattr(method := getattr(obj, name), attr)]
+    priority_attr = f"{attr}_priority"
+    methods.sort(key=lambda m: (-getattr(m, priority_attr, 0), m.__name__))
+    return methods
+
+
+def invoke(fn: Callable[..., Any], available: dict[str | type, Any]) -> Any:
+    params = inspect.signature(fn).parameters
+    kwargs = {name: available[name] for name in params if name in available}
+    if any(isinstance(key, type) for key in available):
+        hints = get_type_hints(fn)
+        for name in params:
+            annotation = get_origin(hints.get(name)) or hints.get(name)
+            if name not in kwargs and annotation in available:
+                kwargs[name] = available[annotation]
+    return fn(**kwargs)
+
+
+async def invoke_all(
+    fns: list[Callable[..., Any]], available: dict[str, Any]
+) -> list[Any]:
+    """Invoke scoring handlers concurrently, including empty and singleton lists."""
+    return await asyncio.gather(*(invoke(fn, available) for fn in fns))
+
+
+def seed(scores: dict[str, Any], names: Iterable[str]) -> None:
+    """Mark every expected scoring key as unscored (`None`) before invocation, so a
+    trace records which signals should have run even when scoring fails midway.
+    Overwrites: a re-scoring attempt resets its own names, so stale values from a
+    previous attempt never read as fresh."""
+    for name in names:
+        scores[name] = None
+
+
+def unseed(scores: dict[str, Any], name: str) -> None:
+    """Drop a still-unscored seed — a handler returning keyed scores records under
+    its result's keys, not its function name."""
+    if scores.get(name) is None:
+        scores.pop(name, None)
+
+
+def mark(attr: str, **extra: Any) -> Callable[[F], F]:
+    def decorator(f: F) -> F:
+        setattr(f, attr, True)
+        for key, value in extra.items():
+            setattr(f, key, value)
+        return f
+
+    return decorator
+
+
+@overload
+def tool(func: F, name: str | None = None) -> F: ...
+@overload
+def tool(func: None = None, name: str | None = None) -> Callable[[F], F]: ...
+def tool(func: F | None = None, name: str | None = None) -> F | Callable[[F], F]:
+    """Mark a `Toolset` method as an MCP tool exposed to the model. The tool name defaults
+    to the method name (override with `name`); the docstring becomes its description."""
+    decorator = mark("tool", tool_name=name)
+    return decorator if func is None else decorator(func)
+
+
+@overload
+def stop(func: F, priority: int = 0, skip_scoring: bool = False) -> F: ...
+@overload
+def stop(
+    func: None = None, priority: int = 0, skip_scoring: bool = False
+) -> Callable[[F], F]: ...
+def stop(
+    func: F | None = None, priority: int = 0, skip_scoring: bool = False
+) -> F | Callable[[F], F]:
+    """Stop when a typed `Request`, `Response`, or `Trace` predicate returns true. With
+    `skip_scoring`, a trace this stop ends skips task scoring: it keeps no rewards, so
+    its reward is 0."""
+    decorator = mark("stop", stop_priority=priority, stop_skip_scoring=skip_scoring)
+    return decorator if func is None else decorator(func)
+
+
+@overload
+def intercept(func: F, priority: int = 0) -> F: ...
+@overload
+def intercept(func: None = None, priority: int = 0) -> Callable[[F], F]: ...
+def intercept(func: F | None = None, priority: int = 0) -> F | Callable[[F], F]:
+    """Inspect a typed boundary; return its replacement or None to leave it unchanged."""
+    decorator = mark("intercept", intercept_priority=priority)
+    return decorator if func is None else decorator(func)
+
+
+@overload
+def metric(func: F, priority: int = 0) -> F: ...
+@overload
+def metric(func: None = None, priority: int = 0) -> Callable[[F], F]: ...
+def metric(func: F | None = None, priority: int = 0) -> F | Callable[[F], F]:
+    """Mark a `Task`/`Harness` metric `(self, trace) -> float` (recorded, not
+    summed) — per-trace judgement; it declares what it needs by name (`task`,
+    `trace`, `runtime`). Cross-agent judgement is an `Env`'s `finalize()`,
+    imperatively."""
+    decorator = mark("metric", metric_priority=priority)
+    return decorator if func is None else decorator(func)
+
+
+@overload
+def reward(func: F, weight: float = 1.0, priority: int = 0) -> F: ...
+@overload
+def reward(
+    func: None = None, weight: float = 1.0, priority: int = 0
+) -> Callable[[F], F]: ...
+def reward(
+    func: F | None = None, weight: float = 1.0, priority: int = 0
+) -> F | Callable[[F], F]:
+    """Mark a weighted `Task` reward returning a float or keyed scores — per-trace
+    judgement over the trace's own run. Cross-agent judgement is an
+    `Env`'s `finalize()`, imperatively."""
+    decorator = mark("reward", reward_priority=priority, _vf_weight=weight)
+    return decorator if func is None else decorator(func)

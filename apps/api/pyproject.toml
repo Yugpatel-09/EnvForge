@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "envforge-control-plane"
+version = "0.2.0"
+requires-python = ">=3.11,<3.15"
+dependencies = ["verifiers", "fastapi>=0.115,<1", "uvicorn>=0.30"]
+
+[dependency-groups]
+dev = ["pytest>=7,<9.1"]
+
+[project.scripts]
+envforge-api = "apps.api.main:main"
+envforge-worker = "apps.api.runner:main"
+
+[tool.uv.sources]
+verifiers = { path = "../..", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = []
+bypass-selection = true
