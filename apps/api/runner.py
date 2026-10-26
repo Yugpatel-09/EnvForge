@@ -6,7 +6,14 @@ import time
 import uuid
 
 from apps.api.storage import database
-from envforge.agents import AgentConfig, AgentProtocolError, http_action
+from envforge.agents import (
+    AgentConfig,
+    AgentPending,
+    AgentProtocolError,
+    close_agent,
+    http_action,
+    request_agent,
+)
 from envforge.protocol.integrity import digest
 from envforge.protocol.types import DifficultyTier, SuiteName
 from envforge.provenance import implementation_digest
@@ -52,6 +59,7 @@ def run_evaluation_task(eval_id: str) -> bool:
             "SELECT * FROM evaluations WHERE id=?", (eval_id,)
         ).fetchone()
     env = SREIncidentResponseEnvironment()
+    config = None
     try:
         manifest = json.loads(row["manifest_json"])
         expected = {
@@ -68,6 +76,19 @@ def run_evaluation_task(eval_id: str) -> bool:
         ):
             raise ValueError("Queued run does not match the installed implementation")
         config = AgentConfig.model_validate(manifest["agent_config"])
+        if config.metadata.get("integration") in {"holmesgpt", "kubectl_ai"}:
+            runtime = config.metadata.get("runtime")
+            if not runtime:
+                raise ValueError(
+                    "Test the native agent connection before launching a run"
+                )
+            health = request_agent(config, {"operation": "health"})
+            if not isinstance(health, dict) or any(
+                health.get(key) != value for key, value in runtime.items()
+            ):
+                raise ValueError(
+                    "Native agent runtime changed; test connection and start a new run"
+                )
         for seed in manifest["seeds"]:
             with database() as conn:
                 run = conn.execute(
@@ -127,6 +148,10 @@ def run_evaluation_task(eval_id: str) -> bool:
                             min(20, remaining),
                         )
                     )
+                except AgentPending:
+                    calls -= 1
+                    time.sleep(min(0.25, max(0, deadline - time.monotonic())))
+                    continue
                 except AgentProtocolError as exc:
                     protocol_error = str(exc)
                     break
@@ -200,6 +225,7 @@ def run_evaluation_task(eval_id: str) -> bool:
                         owner,
                     ),
                 )
+            close_agent(config, ep_id)
             env.close(ep_id)
         with database() as conn:
             conn.execute(
@@ -221,6 +247,8 @@ def run_evaluation_task(eval_id: str) -> bool:
             )
     finally:
         for ep_id in list(env.active_episodes):
+            if config is not None:
+                close_agent(config, ep_id)
             env.close(ep_id)
     return True
 

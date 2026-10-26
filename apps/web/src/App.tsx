@@ -1173,8 +1173,11 @@ function RunBuilder({
           void perform(async () => {
             const agent = await api<Agent>("/v1/agents", {
               name: agentName,
-              adapter,
-              ...(adapter === "http_endpoint"
+              adapter: adapter === "reference_solver" ? adapter : "http_endpoint",
+              ...(["holmesgpt", "kubectl_ai"].includes(adapter)
+                ? { metadata: { integration: adapter } }
+                : {}),
+              ...(adapter !== "reference_solver"
                 ? {
                     endpoint_url: endpoint,
                     ...(tokenEnv ? { token_env: tokenEnv } : {}),
@@ -1187,8 +1190,7 @@ function RunBuilder({
       >
         <h2>Register an agent</h2>
         <p className="section-desc">
-          Connect your HTTP action endpoint, or use the built-in reference
-          oracle.
+          Connect HolmesGPT, kubectl-ai, your own HTTP agent, or the reference oracle.
         </p>
         <label className="form-label" htmlFor="agent-name">
           Agent name
@@ -1206,15 +1208,31 @@ function RunBuilder({
         <select
           id="adapter"
           value={adapter}
-          onChange={(e) => setAdapter(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setAdapter(value);
+            if (value === "holmesgpt" || value === "kubectl_ai") {
+              setAgentName(value === "holmesgpt" ? "HolmesGPT" : "kubectl-ai");
+              setEndpoint(`http://127.0.0.1:${value === "holmesgpt" ? 9002 : 9003}/agent`);
+              setTokenEnv("ENVFORGE_BRIDGE_TOKEN");
+            }
+          }}
         >
           <option value="reference_solver">
             Reference oracle (setup only)
           </option>
           <option value="http_endpoint">HTTP action endpoint</option>
+          <option value="holmesgpt">HolmesGPT (native agent bridge)</option>
+          <option value="kubectl_ai">kubectl-ai (native agent bridge)</option>
         </select>
-        {adapter === "http_endpoint" && (
+        {adapter !== "reference_solver" && (
           <>
+            {["holmesgpt", "kubectl_ai"].includes(adapter) && (
+              <p className="form-desc">
+                Start the matching bridge and configure its model provider first.
+                Each episode runs the native agent in a fresh container. See deploy/agents/README.md for setup.
+              </p>
+            )}
             <label className="form-label" htmlFor="endpoint">
               Action endpoint URL
             </label>

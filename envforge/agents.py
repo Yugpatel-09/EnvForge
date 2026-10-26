@@ -1,5 +1,6 @@
 """Explicit reference baseline and bounded HTTP action adapters."""
 
+import logging
 import os
 import time
 from typing import Literal
@@ -13,6 +14,10 @@ from envforge.protocol.types import Action
 
 class AgentProtocolError(ValueError):
     """An endpoint responded, but did not follow the action protocol."""
+
+
+class AgentPending(Exception):
+    """The native agent is still reasoning; poll within the episode deadline."""
 
 
 class AgentConfig(BaseModel):
@@ -110,6 +115,8 @@ def http_action(
         },
         timeout,
     )
+    if isinstance(data, dict) and data == {"pending": True}:
+        raise AgentPending
     if not isinstance(data, dict) or "action" not in data:
         raise AgentProtocolError(
             "Agent must return an object containing action (or null)"
@@ -124,3 +131,15 @@ def http_action(
         raise AgentProtocolError(
             "Agent action does not match the documented schema"
         ) from None
+
+
+def close_agent(config: AgentConfig, episode_id: str) -> None:
+    """Release native integration resources without changing the episode result."""
+    if config.metadata.get("integration") in {"holmesgpt", "kubectl_ai"}:
+        try:
+            request_agent(config, {"operation": "close", "episode_id": episode_id}, 10)
+        except (httpx.HTTPError, ValueError, RuntimeError, TimeoutError):
+            # The bridge also expires abandoned sessions after the episode budget.
+            logging.getLogger(__name__).warning(
+                "Native agent cleanup failed; bridge expiry will retry"
+            )

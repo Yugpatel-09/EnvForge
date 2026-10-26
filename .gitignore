@@ -54,3 +54,4 @@ node_modules/
 apps/web/dist/
 data/
 apps/api/.venv/
+work/

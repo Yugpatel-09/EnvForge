@@ -1,0 +1,7 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+RUN uv venv /opt/mcp && uv pip install --python /opt/mcp/bin/python 'mcp==2.0.0' 'httpx==0.28.1' \
+    && uv venv /opt/holmes && uv pip install --python /opt/holmes/bin/python 'holmesgpt==0.45.0'
+COPY deploy/agents/mcp_proxy.py deploy/agents/entrypoint.py /opt/bridge/
+ENV ENVFORGE_AGENT=holmesgpt UV_CACHE_DIR=/tmp/uv UV_NO_SYNC=1 UV_NO_MANAGED_PYTHON=1
+USER 10001:10001
+ENTRYPOINT ["uv", "run", "--no-project", "--no-sync", "--python", "/opt/mcp/bin/python", "python", "/opt/bridge/entrypoint.py"]

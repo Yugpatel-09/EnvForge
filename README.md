@@ -12,6 +12,8 @@ Before an AI agent touches your production cluster, certify it on EnvForge. EnvF
 - Typed tools for logs, metrics, configuration, restarts, rollbacks, and reports.
   Hard scenarios combine compatible faults; adversarial logs are untrusted.
 - Customer HTTP agents and an explicitly labeled reference oracle.
+- Native [HolmesGPT and kubectl-ai integrations](deploy/agents/README.md), with
+  per-episode containers and MCP tools connected to the simulator.
 - A SQLite queue, bounded concurrency, cancellation, worker leases, and progress
   saved after each episode.
 - Verification of sustained simulated recovery, diagnostic evidence, resource

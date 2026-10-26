@@ -79,6 +79,24 @@ def test_agent_connection(agent_id: str):
             )
             if not isinstance(result, dict) or result.get("status") != "healthy":
                 raise ValueError("Expected status=healthy")
+            integration = config.metadata.get("integration")
+            if integration in {"holmesgpt", "kubectl_ai"}:
+                if result.get("integration") != integration:
+                    raise ValueError("Connected to the wrong native agent bridge")
+                runtime = {
+                    key: result.get(key)
+                    for key in ("integration", "model", "provider", "image_id")
+                }
+                if not all(
+                    isinstance(value, str) and value for value in runtime.values()
+                ):
+                    raise ValueError("Bridge did not report its runtime identity")
+                config.metadata["runtime"] = runtime
+                with database() as conn:
+                    conn.execute(
+                        "UPDATE agents SET config_json=? WHERE id=?",
+                        (config.model_dump_json(), agent_id),
+                    )
         except (httpx.HTTPError, ValueError, RuntimeError, TimeoutError):
             raise HTTPException(
                 502, "Agent handshake failed; check endpoint availability and protocol"
