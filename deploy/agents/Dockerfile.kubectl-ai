@@ -1,7 +1,15 @@
+FROM golang:1.24.3-bookworm AS upstream
+ADD https://codeload.github.com/GoogleCloudPlatform/kubectl-ai/tar.gz/08cf256aa2f5749958f76659134625fe70a19a15 /tmp/source.tar.gz
+RUN mkdir /src && tar -xzf /tmp/source.tar.gz --strip-components=1 -C /src
+WORKDIR /src
+COPY deploy/agents/kubectl-ai-session-tools.patch /tmp/session-tools.patch
+RUN git apply --check /tmp/session-tools.patch && git apply /tmp/session-tools.patch
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -o /out/kubectl-ai ./cmd
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-RUN uv venv /opt/mcp && uv pip install --python /opt/mcp/bin/python 'mcp==2.0.0' 'httpx==0.28.1'
-COPY deploy/agents/install_kubectl.py /opt/bridge/install_kubectl.py
-RUN uv run --no-project --no-sync /opt/bridge/install_kubectl.py
+RUN uv venv /opt/mcp && uv pip install --python /opt/mcp/bin/python 'mcp==1.9.4' 'pydantic==2.11.7' 'httpx==0.28.1'
+COPY --from=upstream /out/kubectl-ai /usr/local/bin/kubectl-ai
 COPY deploy/agents/mcp_proxy.py deploy/agents/entrypoint.py /opt/bridge/
 ENV ENVFORGE_AGENT=kubectl_ai UV_CACHE_DIR=/tmp/uv UV_NO_SYNC=1 UV_NO_MANAGED_PYTHON=1
 USER 10001:10001

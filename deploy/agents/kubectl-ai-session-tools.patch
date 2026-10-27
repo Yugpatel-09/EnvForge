@@ -1,0 +1,11 @@
+diff --git a/pkg/agent/mcp_client.go b/pkg/agent/mcp_client.go
+--- a/pkg/agent/mcp_client.go
++++ b/pkg/agent/mcp_client.go
+@@ -48,6 +48,6 @@ func (a *Agent) InitializeMCPClient(ctx context.Context) error {
+ 
+ 		// Create and register MCP tool wrapper
+-		tools.RegisterTool(mcpTool)
++		a.Tools.RegisterTool(mcpTool)
+ 		return nil
+ 	})
+ 

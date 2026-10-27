@@ -25,6 +25,10 @@ transport = {
         "python",
         "/opt/bridge/mcp_proxy.py",
     ],
+    "env": {
+        key: os.environ[key]
+        for key in ("ENVFORGE_SESSION_URL", "ENVFORGE_SESSION_TOKEN")
+    },
 }
 prompt = os.environ.pop("ENVFORGE_PROMPT")
 model = os.environ["ENVFORGE_MODEL"]

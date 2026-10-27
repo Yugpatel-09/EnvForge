@@ -4,6 +4,10 @@ EnvForge supports **HolmesGPT 0.45.0** and **kubectl-ai 0.0.31** through their n
 
 These integrations evaluate agents against the SRE simulator. They do not provision a real Kubernetes cluster. kagent is not included.
 
+The isolated MCP helper pins SDK 1.9.4 and Pydantic 2.11.7 for the native clients' protocol compatibility. In particular, kubectl-ai 0.0.31 sends an empty initialization version and accepts the helper's 2025-03-26 fallback. The helper uses the SDK's public stdio server; EnvForge's own dependency versions are independent.
+
+The kubectl-ai image builds upstream commit `08cf256aa2f5749958f76659134625fe70a19a15` (v0.0.31) with the included one-line `kubectl-ai-session-tools.patch`. It registers discovered MCP tools in the active agent's tool collection so they are available to the model and executor. The native planning and execution loop is unchanged; the image ID identifies this patched build in run manifests.
+
 ## Setup
 
 Run these commands from the repository root with Docker running:
